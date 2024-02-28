@@ -6,4 +6,5 @@ Neste projeto criei um bloco de nota manipulando ficheiro com o modulo fs do Nod
 ## > git clone git@github.com:Hudson512/Bloco-de-notas-com-Nodejs.git
 ## > cd Bloco-de-notas-com-Nodejs
 ## > npm install
-## > node app.js
+## > node app.js 
+## Abra o navegador e acesse: http://localhost:3000/
