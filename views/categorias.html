@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+        .btn-voltar {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-voltar:hover {
+            background: #5568d3;
+        }
+        .form-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: bold;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn-adicionar {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn-adicionar:hover {
+            background: #45a049;
+        }
+        .lista-categorias {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .categoria-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+        }
+        .categoria-item:hover {
+            background: #f9f9f9;
+        }
+        .categoria-item:last-child {
+            border-bottom: none;
+        }
+        .categoria-nome {
+            font-size: 1.1em;
+            color: #333;
+            font-weight: 500;
+        }
+        .btn-eliminar-cat {
+            background: #f44336;
+            color: white;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+            text-decoration: none;
+        }
+        .btn-eliminar-cat:hover {
+            background: #da190b;
+        }
+        .mensagem-vazio {
+            text-align: center;
+            color: #999;
+            padding: 40px;
+            font-size: 1.1em;
+        }
+    </style>
+    <title>Gerenciar Categorias</title>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Gerenciar Categorias</h1>
+            <a href="/" class="btn-voltar">Voltar aos Produtos</a>
+        </header>
+        
+        <div class="form-container">
+            <h2 style="margin-bottom: 20px; color: #333;">Adicionar Nova Categoria</h2>
+            <form action="/salvar-categoria" method="post">
+                <div class="form-group">
+                    <label for="categoria">Nome da Categoria:</label>
+                    <input type="text" id="categoria" name="categoria" placeholder="Ex: Brinquedos" required>
+                </div>
+                <button type="submit" class="btn-adicionar">Adicionar Categoria</button>
+            </form>
+        </div>
+        
+        <div class="lista-categorias">
+            <h2 style="margin-bottom: 20px; color: #333;">Categorias Cadastradas</h2>
+            {{CATEGORIAS_LISTA}}
+        </div>
+    </div>
+</body>
+</html>

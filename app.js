@@ -1,194 +1,232 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const fs = require('fs/promises');
+const { initDatabase, getPool } = require('./database/connection');
 
 const app = express();
 const port = 3000;
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Inicializar banco de dados
+initDatabase().catch(err => {
+    console.error('Falha ao inicializar banco de dados:', err);
+    process.exit(1);
+});
+
 app.get('/', async (req, res) => {
     try {
-        const data = await fs.readFile('./database/notas.txt', 'utf-8');
-        const notas = data.split('\n');
+        const pool = getPool();
+        
+        // Buscar produtos com suas categorias
+        const [produtos] = await pool.query(`
+            SELECT p.id, p.nome, c.nome as categoria, c.id as categoria_id, p.preco 
+            FROM produtos p 
+            INNER JOIN categorias c ON p.categoria_id = c.id
+            ORDER BY p.criado_em DESC
+        `);
 
-        let html = `
-        <html lang="pt">
-        <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-        *{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            text-decoration: none;
-            font-family:Arial, Helvetica, sans-serif;
-        }
-        body{
-            height: 100vh;
-            width: 100%;
-        }
-        h2{
-            text-align: left;
-        }
-        header{
-            width: 100%;
-            height: 10vh;
-            background-color: #fffffff9;
-            display: flex;
-            flex-wrap: nowrap;
-            align-content: space-around;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            padding: 2%;
-        }
-        .body-1{
-            background: #57595a;
-            height: 90vh;
-            border-top: solid #7a7a7a39 5px;
-            display: flex;
-            flex-wrap: wrap;
-            flex-direction: row;
-            justify-content: space-evenly;
-            padding: 2%;
-            overflow: auto;
-        }
-        .body-2{
-            background: #57595a;
-            height: 90vh;
-            border-top: solid #7a7a7a39 5px;
-            display: none;
-            padding: 2%;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-        }
-        .adicionar{
-            font-size: large;
-            color: #65641d;
-            font-weight: bold;
-            transition: font-size 0.2s;
-        }
-        .eliminar{
-            border-left: solid red 5px;
-            padding: 2px;
-            color: red;
-            text-align: left;
-            width: 40%;
-        }
-        .adicionar:hover {
-            font-size: x-large;
-            color: #d4d37e;
-            font-weight: bold;
-        }
-        .btn{
-            background-color: cornflowerblue;
-            padding: 2%;
-            border: none;
-            cursor: pointer;
-        }
-        .nota{
-            display: flex;
-            flex-direction: column;
-            width: 30%;
-            height: 15%;
-            background: #DBDA7D;
-            border: solid black 1px;
-            padding: 1%;
-            flex-wrap: nowrap;
-            align-items: stretch;
-            margin-bottom: 1%;
-        }
-        </style>
-        <title>Pag inicial - Bloco de notas</title>
-        </head>
-        <body>
-        <div class="app">
-        <header>
-            <h1>Bloco de notas</h1>
-            <a class="adicionar" id="ad" href="#" onclick="adicionarNovaNota()">Adicionar nova nota</a>
-        </header>
-        <main class="body-1" id="main-1">
-        `;
-        notas.forEach((nota, index) => {
-            if (nota.trim() !== '') {
-                html += `
-                    <div class="nota">
-                    ${nota}
-                    <a class="eliminar" href="/apagar-nota/${index}">Eliminar nota</a>
+        // Buscar categorias para o select
+        const [categorias] = await pool.query('SELECT id, nome FROM categorias ORDER BY nome');
+
+        // Gera o HTML das opções de categorias
+        let categoriasOptions = '<option value="">Selecione uma categoria</option>';
+        categorias.forEach(cat => {
+            categoriasOptions += `<option value="${cat.id}">${cat.nome}</option>`;
+        });
+
+        // Gera o HTML dos produtos
+        let produtosHtml = '';
+        
+        if (produtos.length === 0) {
+            produtosHtml = '<div class="mensagem-vazio">Nenhum produto cadastrado. Clique em "Adicionar Produto" para começar!</div>';
+        } else {
+            produtos.forEach(produto => {
+                produtosHtml += `
+                    <div class="produto-card">
+                        <div class="produto-nome">${produto.nome}</div>
+                        <span class="produto-categoria">${produto.categoria}</span>
+                        <div class="produto-preco">Kz ${parseFloat(produto.preco).toFixed(2)}</div>
+                        <div class="produto-acoes">
+                            <button class="btn-editar" onclick="abrirModalEditar(${produto.id}, '${produto.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', ${produto.categoria_id}, ${produto.preco})">
+                                ✏️ Editar
+                            </button>
+                            <a class="btn-eliminar" href="/apagar-produto/${produto.id}">Eliminar</a>
+                        </div>
                     </div>
                 `;
-            }
-        });
-        html += `
-        </main>
-        <main class="body-2" id="main-2">
-            <form action="/salvar-nota" method="post">
-                <textarea name="nota" rows="4" cols="50"></textarea><br>
-                <input class="btn" type="submit" value="Salvar Nota">
-              </form>
-        </main>
-        </div>
-        <script type="text/javascript">
-        var ad = document.getElementById('ad');
-        var main1 = document.getElementById('main-1');
-        var main2 = document.getElementById('main-2');
-        function adicionarNovaNota(){
-            main1.style.display = 'none';
-            main2.style.display = 'flex';
-            ad.innerHTML = 'Ver notas';
-            ad.setAttribute("onClick", "verNovaNota()");
+            });
         }
-        function verNovaNota(){
-            main1.style.display = 'flex';
-            main2.style.display = 'none';
-            ad.innerHTML = 'Adicionar nova nota';
-            ad.setAttribute("onClick", "adicionarNovaNota()");
-        }
-        </script>
-        </body>
-        </html>
-        `;
+
+        // Lê o template HTML
+        const fs = require('fs/promises');
+        let html = await fs.readFile('./views/index.html', 'utf-8');
+        
+        // Substitui os placeholders (usar replace global para todas as ocorrências)
+        html = html.replace('{{PRODUTOS}}', produtosHtml);
+        html = html.replace(/{{CATEGORIAS}}/g, categoriasOptions);
+        
         res.send(html);
 
     } catch (err) {
         console.error(err);
-        res.status(500).send('Erro ao ler as notas.');
+        res.status(500).send('Erro ao ler os produtos.');
     }
 });
 
-
-app.post('/salvar-nota', async (req, res) => {
+app.post('/salvar-produto', async (req, res) => {
     try {
-        // Adiciona a nova nota ao arquivo de notas
-        await fs.appendFile('./database/notas.txt', `${req.body.nota}\n`);
+        const { nome, categoria, preco } = req.body;
+        
+        // Valida os dados
+        if (!nome || !categoria || !preco) {
+            return res.status(400).send('Todos os campos são obrigatórios.');
+        }
+        
+        const pool = getPool();
+        await pool.query(
+            'INSERT INTO produtos (nome, categoria_id, preco) VALUES (?, ?, ?)',
+            [nome, categoria, preco]
+        );
+        
         res.redirect('/');
     } catch (err) {
         console.error(err);
-        res.status(500).send('Erro ao salvar a nota.');
+        res.status(500).send('Erro ao salvar o produto.');
     }
 });
 
-app.get('/apagar-nota/:id', async (req, res) => {
+app.post('/editar-produto/:id', async (req, res) => {
     try {
         const id = parseInt(req.params.id);
-        const notas = (await fs.readFile('./database/notas.txt', 'utf-8')).split('\n');
-
-        if (id >= 0 && id < notas.length) {
-            notas.splice(id, 1); // Remove a nota na posição especificada
-            await fs.writeFile('./database/notas.txt', notas.join('\n'));
+        const { nome, categoria, preco } = req.body;
+        
+        // Valida os dados
+        if (!nome || !categoria || !preco) {
+            return res.status(400).send('Todos os campos são obrigatórios.');
         }
+        
+        if (isNaN(id)) {
+            return res.status(400).send('ID inválido.');
+        }
+        
+        const pool = getPool();
+        await pool.query(
+            'UPDATE produtos SET nome = ?, categoria_id = ?, preco = ? WHERE id = ?',
+            [nome, categoria, preco, id]
+        );
+        
+        res.redirect('/');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Erro ao editar o produto.');
+    }
+});
+
+app.get('/apagar-produto/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        
+        if (isNaN(id)) {
+            return res.status(400).send('ID inválido.');
+        }
+
+        const pool = getPool();
+        await pool.query('DELETE FROM produtos WHERE id = ?', [id]);
 
         res.redirect('/');
     } catch (err) {
         console.error(err);
-        res.status(500).send('Erro ao apagar a nota.');
+        res.status(500).send('Erro ao apagar o produto.');
     }
 });
 
+// Rotas de Categorias
+app.get('/categorias', async (req, res) => {
+    try {
+        const pool = getPool();
+        const [categorias] = await pool.query('SELECT id, nome FROM categorias ORDER BY nome');
+        
+        let categoriasHtml = '';
+        if (categorias.length === 0) {
+            categoriasHtml = '<div class="mensagem-vazio">Nenhuma categoria cadastrada.</div>';
+        } else {
+            categorias.forEach(cat => {
+                categoriasHtml += `
+                    <div class="categoria-item">
+                        <span class="categoria-nome">${cat.nome}</span>
+                        <a class="btn-eliminar-cat" href="/apagar-categoria/${cat.id}">Eliminar</a>
+                    </div>
+                `;
+            });
+        }
+
+        const fs = require('fs/promises');
+        let html = await fs.readFile('./views/categorias.html', 'utf-8');
+        html = html.replace('{{CATEGORIAS_LISTA}}', categoriasHtml);
+        
+        res.send(html);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Erro ao ler as categorias.');
+    }
+});
+
+app.post('/salvar-categoria', async (req, res) => {
+    try {
+        const { categoria } = req.body;
+        
+        if (!categoria || categoria.trim() === '') {
+            return res.status(400).send('Nome da categoria é obrigatório.');
+        }
+        
+        const pool = getPool();
+        
+        // Verifica se a categoria já existe
+        const [existing] = await pool.query(
+            'SELECT id FROM categorias WHERE nome = ?',
+            [categoria.trim()]
+        );
+        
+        if (existing.length > 0) {
+            return res.status(400).send('Esta categoria já existe.');
+        }
+        
+        await pool.query('INSERT INTO categorias (nome) VALUES (?)', [categoria.trim()]);
+        res.redirect('/categorias');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Erro ao salvar a categoria.');
+    }
+});
+
+app.get('/apagar-categoria/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        
+        if (isNaN(id)) {
+            return res.status(400).send('ID inválido.');
+        }
+
+        const pool = getPool();
+        
+        // Verifica se há produtos usando esta categoria
+        const [produtos] = await pool.query(
+            'SELECT COUNT(*) as total FROM produtos WHERE categoria_id = ?',
+            [id]
+        );
+        
+        if (produtos[0].total > 0) {
+            return res.status(400).send(`Não é possível eliminar esta categoria pois existem ${produtos[0].total} produto(s) associado(s).`);
+        }
+        
+        await pool.query('DELETE FROM categorias WHERE id = ?', [id]);
+        res.redirect('/categorias');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Erro ao apagar a categoria.');
+    }
+});
 
 app.listen(port, () => {
-    console.log(`App de bloco de notas rodando em http://localhost:${port}`);
+    console.log(`Sistema de Produtos rodando em http://localhost:${port}`);
 });
